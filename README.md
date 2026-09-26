@@ -1,3 +1,20 @@
+# StockSense 📦
+
+A centralized, real-time Inventory Management System (IMS) designed to digitize and streamline business operations, replacing manual registers and scattered spreadsheets.
+
+Key Features
+**Product Management:** SKU tracking, categories, low-stock alerts, and auto-reordering rules.
+**Inbound & Outbound:** Automated Vendor Receipts (stock in) and Delivery Orders (stock out).
+**Transfers & Adjustments:** Multi-warehouse internal transfers and instant physical inventory adjustments.
+**Real-time Analytics:** Interactive dashboard with live KPIs, status filters, and full move history.
+**Secure Access:** Role-based authentication with OTP password reset.
+
+Tech Stack
+
+Frontend:** React.js, JavaScript, CSS3
+Backend:** Django Framework / Django REST Framework (Python)
+Database:** MySQL
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
