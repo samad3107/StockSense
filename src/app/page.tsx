@@ -1,308 +1,649 @@
 "use client";
 
 import React, { useState } from "react";
-import Navbar from "@/components/Navbar";
+import LandingPage from "@/components/LandingPage";
+import Sidebar, { NavItem } from "@/components/Sidebar";
 import KPICards from "@/components/KPICards";
+import StaffDashboardView from "@/components/StaffDashboardView";
 import ProductTable from "@/components/ProductTable";
 import OperationsView from "@/components/OperationsView";
+import StockAdjustmentView from "@/components/StockAdjustmentView";
+import StockLedgerView from "@/components/StockLedgerView";
+import WarehouseSettingsView from "@/components/WarehouseSettingsView";
 import AddProductModal from "@/components/AddProductModal";
-import { initialProducts, initialOperations } from "@/data/mockData";
-import { Product, StockOperation, StockStatus, InventoryStats } from "@/types/inventory";
-import { Plus, ArrowDownLeft, ArrowUpRight, ShieldCheck, Sparkles, TrendingUp, Layers } from "lucide-react";
+import AuthModal from "@/components/AuthModal";
+
+import {
+  initialProducts,
+  initialOperations,
+  initialAdjustments,
+  initialLedger,
+} from "@/data/mockData";
+
+import {
+  Product,
+  StockOperation,
+  StockAdjustment,
+  StockLedgerEntry,
+  UserProfile,
+  Currency,
+  StockStatus,
+} from "@/types/inventory";
+
+import {
+  Sparkles,
+  ShieldCheck,
+  Plus,
+  ArrowDownLeft,
+  ClipboardCheck,
+  History,
+  Layers,
+  LogOut,
+  Sun,
+  Moon,
+} from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function Home() {
+  const { theme, toggleTheme, mounted } = useTheme();
+  // Application Data States
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [operations, setOperations] = useState<StockOperation[]>(initialOperations);
-  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("All Warehouses");
-  const [activeTab, setActiveTab] = useState<"overview" | "inventory" | "operations">("overview");
+  const [adjustments, setAdjustments] = useState<StockAdjustment[]>(initialAdjustments);
+  const [ledger, setLedger] = useState<StockLedgerEntry[]>(initialLedger);
+
+  // Authentication & Role State (Defaults to null so Landing Page is the default view on load)
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [currentTab, setCurrentTab] = useState<NavItem>("dashboard");
+  const [currency, setCurrency] = useState<Currency>("INR");
   const [filterStatus, setFilterStatus] = useState<StockStatus | "ALL">("ALL");
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // Compute live stats
-  const stats: InventoryStats = {
-    totalValuation: products.reduce((acc, p) => acc + p.quantity * p.unitCost, 0),
-    totalItems: products.reduce((acc, p) => acc + p.quantity, 0),
-    lowStockCount: products.filter((p) => p.status === "Low Stock").length,
-    outOfStockCount: products.filter((p) => p.status === "Out of Stock").length,
-    pendingReceipts: operations.filter((op) => op.type === "Receipt (Inbound)" && op.status !== "Done").length,
-    pendingDeliveries: operations.filter((op) => op.type === "Delivery (Outbound)" && op.status !== "Done").length,
-  };
+  // Modals
+  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // Helper to recompute product status
-  const determineStatus = (qty: number, min: number): StockStatus => {
-    if (qty <= 0) return "Out of Stock";
-    if (qty <= min) return "Low Stock";
+  // Helper: Stock status calculation
+  const calculateStockStatus = (quantity: number, minThreshold: number): StockStatus => {
+    if (quantity <= 0) return "Out of Stock";
+    if (quantity <= minThreshold) return "Low Stock";
     return "In Stock";
   };
 
-  // Handler: Add new product
+  // Live KPI Calculations
+  const pendingReceipts = operations.filter((op) => op.type === "Receipt" && op.status !== "Done").length;
+  const pendingDeliveries = operations.filter((op) => op.type === "Delivery" && op.status !== "Done").length;
+  const scheduledTransfers = operations.filter((op) => op.type === "Transfer" && op.status !== "Done").length;
+
+  const kpiData = {
+    totalValuation: products.reduce((acc, p) => acc + p.quantity * p.unitCost, 0),
+    totalProductsCount: products.length,
+    lowStockCount: products.filter((p) => p.status === "Low Stock").length,
+    outOfStockCount: products.filter((p) => p.status === "Out of Stock").length,
+    pendingReceipts,
+    pendingDeliveries,
+    scheduledTransfers,
+  };
+
+  // ==========================================
+  // CORE STOCK ENGINE (AUTOMATIC LEDGER & QUANTITY)
+  // ==========================================
+
+  // 1. Validate an Operation (Receipt, Delivery, or Transfer)
+  const handleValidateOperation = (opId: string) => {
+    const op = operations.find((o) => o.id === opId);
+    if (!op || op.status === "Done") return;
+
+    const targetProduct = products.find((p) => p.id === op.productId);
+    if (!targetProduct) return;
+
+    let qtyDelta = 0;
+    let newQty = targetProduct.quantity;
+    let newLocation = targetProduct.location;
+
+    if (op.type === "Receipt") {
+      qtyDelta = op.quantity;
+      newQty = targetProduct.quantity + op.quantity;
+    } else if (op.type === "Delivery") {
+      qtyDelta = -op.quantity;
+      newQty = Math.max(0, targetProduct.quantity - op.quantity);
+    } else if (op.type === "Transfer") {
+      qtyDelta = 0;
+      newLocation = op.destinationLocation;
+    }
+
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === targetProduct.id
+          ? {
+              ...p,
+              quantity: newQty,
+              location: newLocation,
+              status: calculateStockStatus(newQty, p.minThreshold),
+              lastUpdated: "Just now",
+            }
+          : p
+      )
+    );
+
+    setOperations((prev) =>
+      prev.map((o) => (o.id === opId ? { ...o, status: "Done" as const } : o))
+    );
+
+    const newLedgerEntry: StockLedgerEntry = {
+      id: `led-${Date.now()}`,
+      timestamp: new Date().toISOString().replace("T", " ").substring(0, 16),
+      reference: op.reference,
+      type: op.type,
+      productName: targetProduct.name,
+      sku: targetProduct.sku,
+      quantityChange: qtyDelta,
+      uom: targetProduct.uom,
+      fromLocation: op.sourceLocation,
+      toLocation: op.destinationLocation,
+      operator: user ? `${user.name} (${user.role})` : "Floor Operator",
+      notes: `${op.type} validated — ${Math.abs(op.quantity)} ${targetProduct.uom}`,
+    };
+
+    setLedger((prev) => [newLedgerEntry, ...prev]);
+  };
+
+  // 2. Create a new Operation order
+  const handleCreateOperation = (
+    newOp: Omit<StockOperation, "id" | "reference" | "status" | "date">
+  ) => {
+    const prefix = newOp.type === "Receipt" ? "WH/IN" : newOp.type === "Delivery" ? "WH/OUT" : "WH/INT";
+    const ref = `${prefix}/${String(operations.length + 1).padStart(4, "0")}`;
+
+    const created: StockOperation = {
+      ...newOp,
+      id: `op-${Date.now()}`,
+      reference: ref,
+      status: "Ready",
+      date: new Date().toISOString().split("T")[0],
+    };
+
+    setOperations((prev) => [created, ...prev]);
+  };
+
+  // 3. Apply Physical Inventory Adjustment
+  const handleApplyAdjustment = (
+    adjData: Omit<StockAdjustment, "id" | "reference" | "status" | "date">
+  ) => {
+    const ref = `INV/ADJ/${String(adjustments.length + 1).padStart(4, "0")}`;
+
+    const newAdj: StockAdjustment = {
+      ...adjData,
+      id: `adj-${Date.now()}`,
+      reference: ref,
+      status: "Done",
+      date: new Date().toISOString().split("T")[0],
+    };
+
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === adjData.productId
+          ? {
+              ...p,
+              quantity: adjData.countedQuantity,
+              status: calculateStockStatus(adjData.countedQuantity, p.minThreshold),
+              lastUpdated: "Just now",
+            }
+          : p
+      )
+    );
+
+    setAdjustments((prev) => [newAdj, ...prev]);
+
+    const targetProduct = products.find((p) => p.id === adjData.productId);
+    const newLedgerEntry: StockLedgerEntry = {
+      id: `led-${Date.now()}`,
+      timestamp: new Date().toISOString().replace("T", " ").substring(0, 16),
+      reference: ref,
+      type: "Adjustment",
+      productName: adjData.productName,
+      sku: targetProduct?.sku || "SKU",
+      quantityChange: adjData.difference,
+      uom: adjData.uom,
+      fromLocation: adjData.location,
+      toLocation: adjData.difference < 0 ? "Scrap / Discrepancy" : adjData.location,
+      operator: user ? `${user.name} (${user.role})` : "Auditor",
+      notes: `Physical count: ${adjData.countedQuantity} vs recorded ${adjData.recordedQuantity} (${adjData.reason})`,
+    };
+
+    setLedger((prev) => [newLedgerEntry, ...prev]);
+  };
+
+  // 4. Add New Product
   const handleAddProduct = (newProduct: Omit<Product, "id" | "status" | "lastUpdated">) => {
-    const status = determineStatus(newProduct.quantity, newProduct.minThreshold);
-    const productWithId: Product = {
+    const status = calculateStockStatus(newProduct.quantity, newProduct.minThreshold);
+    const createdProduct: Product = {
       ...newProduct,
       id: `prod-${Date.now()}`,
       status,
       lastUpdated: "Just now",
     };
-    setProducts((prev) => [productWithId, ...prev]);
+
+    setProducts((prev) => [createdProduct, ...prev]);
+
+    if (newProduct.quantity > 0) {
+      setLedger((prev) => [
+        {
+          id: `led-${Date.now()}`,
+          timestamp: new Date().toISOString().replace("T", " ").substring(0, 16),
+          reference: `INIT/${newProduct.sku}`,
+          type: "Adjustment",
+          productName: newProduct.name,
+          sku: newProduct.sku,
+          quantityChange: newProduct.quantity,
+          uom: newProduct.uom,
+          fromLocation: "Initial Inventory Setup",
+          toLocation: newProduct.location,
+          operator: user ? user.name : "System",
+          notes: "Initial inventory setup entry",
+        },
+        ...prev,
+      ]);
+    }
   };
 
-  // Handler: Quick stock adjust (+1 / -1)
-  const handleUpdateQuantity = (id: string, delta: number) => {
+  // 5. Quick Stock Adjuster
+  const handleQuickAdjustQuantity = (id: string, delta: number) => {
     setProducts((prev) =>
       prev.map((p) => {
         if (p.id !== id) return p;
         const newQty = Math.max(0, p.quantity + delta);
-        const newStatus = determineStatus(newQty, p.minThreshold);
         return {
           ...p,
           quantity: newQty,
-          status: newStatus,
+          status: calculateStockStatus(newQty, p.minThreshold),
           lastUpdated: "Just now",
         };
       })
     );
   };
 
-  // Handler: Validate operation (Odoo ERP state flow)
-  const handleValidateOperation = (id: string) => {
-    setOperations((prev) =>
-      prev.map((op) => (op.id === id ? { ...op, status: "Done" as const } : op))
+  // ==========================================
+  // VIEW RENDER: LANDING PAGE (WHEN LOGGED OUT)
+  // ==========================================
+  if (!user) {
+    return (
+      <>
+        <LandingPage
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          currency={currency}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onLoginSuccess={(newProfile) => {
+            setUser(newProfile);
+            setCurrentTab("dashboard");
+          }}
+        />
+      </>
     );
-  };
+  }
+
+  // ==========================================
+  // VIEW RENDER: AUTHENTICATED IMS (BY ROLE)
+  // ==========================================
+  const isManager = user.role === "Inventory Manager";
 
   return (
-    <div className="min-h-screen bg-zinc-50/60 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col font-sans">
-      {/* Top Navbar */}
-      <Navbar
-        lowStockCount={stats.lowStockCount}
-        selectedWarehouse={selectedWarehouse}
-        onSelectWarehouse={setSelectedWarehouse}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+    <div className="flex min-h-screen bg-zinc-50/60 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans">
+      {/* 1. Left Sidebar Navigation (Dynamic by Role) */}
+      <Sidebar
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
+        pendingReceipts={pendingReceipts}
+        pendingDeliveries={pendingDeliveries}
+        user={user}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onLogout={() => {
+          setUser(null);
+          setCurrentTab("dashboard");
+        }}
+        currency={currency}
+        onToggleCurrency={() => setCurrency((c) => (c === "INR" ? "USD" : "INR"))}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-6">
-        {/* KPI Cards Row */}
-        <KPICards
-          stats={stats}
-          onFilterLowStock={() => {
-            setActiveTab("inventory");
-            setFilterStatus("Low Stock");
-          }}
-          onFilterOutOfStock={() => {
-            setActiveTab("inventory");
-            setFilterStatus("Out of Stock");
-          }}
-          onGoToOperations={() => setActiveTab("operations")}
-        />
+      {/* 2. Main Content Viewport */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        {/* Header Bar */}
+        <header className="h-16 border-b border-zinc-200 bg-white px-6 flex items-center justify-between dark:border-zinc-800 dark:bg-zinc-950 shrink-0">
+          <div>
+            <h1 className="text-base font-bold text-zinc-900 dark:text-zinc-50 capitalize">
+              {currentTab === "dashboard" && (isManager ? "Inventory Management Dashboard" : "Warehouse Floor Cockpit")}
+              {currentTab === "products" && "Product Catalog & Master Data"}
+              {currentTab === "receipts" && "Inbound Vendor Receipts (Stock-In)"}
+              {currentTab === "deliveries" && "Outbound Delivery Orders (Stock-Out)"}
+              {currentTab === "transfers" && "Internal Warehouse Transfers"}
+              {currentTab === "adjustments" && "Physical Inventory Adjustments"}
+              {currentTab === "ledger" && "Central Stock Ledger (Move History)"}
+              {currentTab === "settings" && "Warehouse Configuration"}
+            </h1>
+            <p className="text-xs text-zinc-500">
+              Facility: {user.warehouse} • Mode: <span className="font-semibold text-purple-600">{user.role}</span>
+            </p>
+          </div>
 
-        {/* Tab 1: Overview Dashboard */}
-        {activeTab === "overview" && (
-          <div className="space-y-6">
-            {/* Quick Action Banner */}
-            <div className="rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-900 to-zinc-900 p-6 text-white shadow-md relative overflow-hidden">
-              <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/20 px-3 py-1 text-xs font-semibold text-purple-200 border border-purple-400/30">
-                    <Sparkles className="h-3.5 w-3.5" /> Odoo Hackathon 2026 Edition
-                  </span>
-                  <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight">
-                    Centralized Stock Control & Traceability
-                  </h1>
-                  <p className="mt-1 text-sm text-purple-200/90 max-w-2xl">
-                    Live inventory synchronization across aisles, storage bins, and transit corridors.
-                    Zero spreadsheet latency, automated reordering thresholds, and auditable movements.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2.5">
-                  <button
-                    onClick={() => setIsAddModalOpen(true)}
-                    className="flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-600/30 hover:bg-purple-500 transition"
-                  >
-                    <Plus className="h-4 w-4" />
-                    + New SKU
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("operations")}
-                    className="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur-xs hover:bg-white/20 transition border border-white/15"
-                  >
-                    <ArrowDownLeft className="h-4 w-4" />
-                    Receive Inbound
-                  </button>
-                </div>
-              </div>
-            </div>
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${
+                isManager
+                  ? "bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                  : "bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+              }`}
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {user.name} ({user.role})
+            </span>
 
-            {/* Grid: Health Metrics & Recent Operations */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {/* Warehouse Health & Status summary */}
-              <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
-                <div className="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
-                  <h3 className="font-bold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-purple-600" />
-                    Storage Health Status
-                  </h3>
-                  <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
-                    <ShieldCheck className="h-3.5 w-3.5" /> 98.4% Acc.
-                  </span>
-                </div>
+            {/* Theme Toggle (Hydration Safe) */}
+            <button
+              onClick={toggleTheme}
+              title={mounted && theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className="flex items-center justify-center h-7 w-7 rounded-lg border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 transition"
+            >
+              {!mounted ? (
+                <span className="h-3.5 w-3.5" />
+              ) : theme === "dark" ? (
+                <Sun className="h-3.5 w-3.5 text-amber-400" />
+              ) : (
+                <Moon className="h-3.5 w-3.5 text-zinc-600" />
+              )}
+            </button>
 
-                <div className="mt-4 space-y-4 text-sm">
-                  <div>
-                    <div className="flex justify-between text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                      <span>Optimal Stock</span>
-                      <span className="font-bold text-zinc-900 dark:text-zinc-100">
-                        {products.filter((p) => p.status === "In Stock").length} SKUs
-                      </span>
-                    </div>
-                    <div className="mt-1 h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500 rounded-full"
-                        style={{
-                          width: `${(products.filter((p) => p.status === "In Stock").length / products.length) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
+            <button
+              onClick={() => {
+                setUser(null);
+                setCurrentTab("dashboard");
+              }}
+              title="Sign Out to Landing Home Page"
+              className="flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-semibold text-zinc-600 hover:bg-rose-50 hover:text-rose-600 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign Out
+            </button>
+          </div>
+        </header>
 
-                  <div>
-                    <div className="flex justify-between text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                      <span>Low Stock Alert</span>
-                      <span className="font-bold text-amber-600">
-                        {stats.lowStockCount} SKUs
-                      </span>
-                    </div>
-                    <div className="mt-1 h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                      <div
-                        className="h-full bg-amber-500 rounded-full"
-                        style={{
-                          width: `${(stats.lowStockCount / products.length) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                      <span>Out of Stock</span>
-                      <span className="font-bold text-rose-600">
-                        {stats.outOfStockCount} SKUs
-                      </span>
-                    </div>
-                    <div className="mt-1 h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                      <div
-                        className="h-full bg-rose-500 rounded-full"
-                        style={{
-                          width: `${(stats.outOfStockCount / products.length) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex justify-between items-center text-xs">
-                    <span className="text-zinc-500">Warehouse Location:</span>
-                    <span className="font-semibold text-purple-600">{selectedWarehouse}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Fast Operations Feed */}
-              <div className="lg:col-span-2 rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
-                <div className="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
-                  <h3 className="font-bold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-purple-600" />
-                    Recent Warehouse Moves (Audit Log)
-                  </h3>
-                  <button
-                    onClick={() => setActiveTab("operations")}
-                    className="text-xs font-semibold text-purple-600 hover:underline"
-                  >
-                    View All Operations ➔
-                  </button>
-                </div>
-
-                <div className="mt-3 divide-y divide-zinc-100 dark:divide-zinc-800 text-sm">
-                  {operations.slice(0, 3).map((op) => (
-                    <div key={op.id} className="py-2.5 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                            op.type === "Receipt (Inbound)"
-                              ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60"
-                              : op.type === "Delivery (Outbound)"
-                              ? "bg-blue-50 text-blue-600 dark:bg-blue-950/60"
-                              : "bg-purple-50 text-purple-600 dark:bg-purple-950/60"
-                          }`}
-                        >
-                          {op.type === "Receipt (Inbound)" && <ArrowDownLeft className="h-4 w-4" />}
-                          {op.type === "Delivery (Outbound)" && <ArrowUpRight className="h-4 w-4" />}
-                        </div>
-                        <div>
-                          <p className="font-mono text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                            {op.reference}
-                          </p>
-                          <p className="text-xs text-zinc-500">{op.partner}</p>
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <span
-                          className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                            op.status === "Done"
-                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                              : "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
-                          }`}
-                        >
-                          {op.status}
+        {/* View Contents */}
+        <main className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+          {/* TAB 1: DASHBOARD (DIFFERENTIATED BY ROLE) */}
+          {currentTab === "dashboard" && (
+            <>
+              {isManager ? (
+                /* INVENTORY MANAGER VIEW */
+                <div className="space-y-6">
+                  {/* Manager Banner */}
+                  <div className="rounded-2xl bg-gradient-to-r from-purple-900 via-indigo-900 to-zinc-900 p-6 text-white shadow-md relative overflow-hidden">
+                    <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <div>
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-500/20 px-3 py-1 text-xs font-semibold text-purple-200 border border-purple-400/30">
+                          <Sparkles className="h-3.5 w-3.5" /> Inventory Manager Cockpit
                         </span>
-                        <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                          {op.itemCount} units
+                        <h2 className="mt-2 text-2xl font-extrabold tracking-tight">
+                          Executive Inventory Valuation & Traceability
+                        </h2>
+                        <p className="mt-1 text-xs text-purple-200/90 max-w-2xl leading-relaxed">
+                          Monitor multi-warehouse valuation, approve vendor receipts, review customer deliveries,
+                          and oversee reorder threshold alerts in real-time.
                         </p>
                       </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setIsAddProductOpen(true)}
+                          className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3.5 py-2 text-xs font-semibold text-white shadow-md hover:bg-purple-500 transition"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add Product
+                        </button>
+                        <button
+                          onClick={() => setCurrentTab("receipts")}
+                          className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-xs hover:bg-white/20 transition border border-white/15"
+                        >
+                          <ArrowDownLeft className="h-4 w-4" />
+                          Receive Stock
+                        </button>
+                        <button
+                          onClick={() => setCurrentTab("adjustments")}
+                          className="flex items-center gap-1.5 rounded-lg bg-white/10 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-xs hover:bg-white/20 transition border border-white/15"
+                        >
+                          <ClipboardCheck className="h-4 w-4" />
+                          Audit Stock
+                        </button>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+                  </div>
 
-            {/* Embedded Product Catalog Preview */}
+                  {/* Key Warehouse Performance Indicators */}
+                  <KPICards
+                    data={kpiData}
+                    currency={currency}
+                    onNavigateTab={(tab) => setCurrentTab(tab)}
+                  />
+
+                  {/* Health Bar & Move History */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+                      <div className="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                        <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+                          <Layers className="h-4 w-4 text-purple-600" />
+                          Warehouse Health & SLA
+                        </h3>
+                        <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                          <ShieldCheck className="h-3.5 w-3.5" /> 99.1% Acc.
+                        </span>
+                      </div>
+
+                      <div className="mt-4 space-y-3 text-xs">
+                        <div>
+                          <div className="flex justify-between font-medium text-zinc-600 dark:text-zinc-400">
+                            <span>In-Stock Items</span>
+                            <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                              {products.filter((p) => p.status === "In Stock").length} SKUs
+                            </span>
+                          </div>
+                          <div className="mt-1 h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full"
+                              style={{
+                                width: `${(products.filter((p) => p.status === "In Stock").length / products.length) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between font-medium text-zinc-600 dark:text-zinc-400">
+                            <span>Low Stock Alerts</span>
+                            <span className="font-bold text-amber-600">{kpiData.lowStockCount} SKUs</span>
+                          </div>
+                          <div className="mt-1 h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                            <div
+                              className="h-full bg-amber-500 rounded-full"
+                              style={{
+                                width: `${(kpiData.lowStockCount / products.length) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between font-medium text-zinc-600 dark:text-zinc-400">
+                            <span>Out of Stock</span>
+                            <span className="font-bold text-rose-600">{kpiData.outOfStockCount} SKUs</span>
+                          </div>
+                          <div className="mt-1 h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                            <div
+                              className="h-full bg-rose-500 rounded-full"
+                              style={{
+                                width: `${(kpiData.outOfStockCount / products.length) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-2 rounded-xl border border-zinc-200 bg-white p-5 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
+                      <div className="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                        <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+                          <History className="h-4 w-4 text-purple-600" />
+                          Central Stock Ledger (Recent Moves)
+                        </h3>
+                        <button
+                          onClick={() => setCurrentTab("ledger")}
+                          className="text-xs font-semibold text-purple-600 hover:underline"
+                        >
+                          View Full Ledger ➔
+                        </button>
+                      </div>
+
+                      <div className="mt-3 divide-y divide-zinc-100 dark:divide-zinc-800 text-xs">
+                        {ledger.slice(0, 4).map((entry) => (
+                          <div key={entry.id} className="py-2.5 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                                  entry.type === "Receipt"
+                                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                    : entry.type === "Delivery"
+                                    ? "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+                                    : "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
+                                }`}
+                              >
+                                {entry.type}
+                              </span>
+                              <div>
+                                <p className="font-semibold text-zinc-800 dark:text-zinc-200">{entry.productName}</p>
+                                <p className="text-[11px] text-zinc-400 font-mono">
+                                  {entry.fromLocation} ➔ {entry.toLocation}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <span
+                                className={`font-mono font-bold text-xs ${
+                                  entry.quantityChange > 0
+                                    ? "text-emerald-600"
+                                    : entry.quantityChange < 0
+                                    ? "text-rose-600"
+                                    : "text-zinc-500"
+                                }`}
+                              >
+                                {entry.quantityChange > 0 ? `+${entry.quantityChange}` : entry.quantityChange} {entry.uom}
+                              </span>
+                              <p className="text-[10px] text-zinc-400">{entry.timestamp}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Embedded Products Table */}
+                  <ProductTable
+                    products={products}
+                    currency={currency}
+                    onAddProductClick={() => setIsAddProductOpen(true)}
+                    onUpdateQuantity={handleQuickAdjustQuantity}
+                    filterStatus={filterStatus}
+                    setFilterStatus={setFilterStatus}
+                  />
+                </div>
+              ) : (
+                /* WAREHOUSE STAFF VIEW (FLOOR OPERATIONS) */
+                <StaffDashboardView
+                  products={products}
+                  operations={operations}
+                  recentLedger={ledger}
+                  onNavigateTab={(tab) => setCurrentTab(tab)}
+                  onValidateOperation={handleValidateOperation}
+                />
+              )}
+            </>
+          )}
+
+          {/* TAB 2: PRODUCTS */}
+          {currentTab === "products" && (
             <ProductTable
               products={products}
-              onAddProductClick={() => setIsAddModalOpen(true)}
-              onUpdateQuantity={handleUpdateQuantity}
+              currency={currency}
+              onAddProductClick={() => setIsAddProductOpen(true)}
+              onUpdateQuantity={handleQuickAdjustQuantity}
               filterStatus={filterStatus}
               setFilterStatus={setFilterStatus}
             />
-          </div>
-        )}
+          )}
 
-        {/* Tab 2: Dedicated Inventory Catalog */}
-        {activeTab === "inventory" && (
-          <ProductTable
-            products={products}
-            onAddProductClick={() => setIsAddModalOpen(true)}
-            onUpdateQuantity={handleUpdateQuantity}
-            filterStatus={filterStatus}
-            setFilterStatus={setFilterStatus}
-          />
-        )}
+          {/* TAB 3: RECEIPTS (STOCK IN) */}
+          {currentTab === "receipts" && (
+            <OperationsView
+              operations={operations}
+              products={products}
+              currentTypeFilter="Receipt"
+              onValidateOperation={handleValidateOperation}
+              onCreateOperation={handleCreateOperation}
+            />
+          )}
 
-        {/* Tab 3: Dedicated Operations View */}
-        {activeTab === "operations" && (
-          <OperationsView
-            operations={operations}
-            onValidateOperation={handleValidateOperation}
-          />
-        )}
-      </main>
+          {/* TAB 4: DELIVERY ORDERS (STOCK OUT) */}
+          {currentTab === "deliveries" && (
+            <OperationsView
+              operations={operations}
+              products={products}
+              currentTypeFilter="Delivery"
+              onValidateOperation={handleValidateOperation}
+              onCreateOperation={handleCreateOperation}
+            />
+          )}
+
+          {/* TAB 5: INTERNAL TRANSFERS */}
+          {currentTab === "transfers" && (
+            <OperationsView
+              operations={operations}
+              products={products}
+              currentTypeFilter="Transfer"
+              onValidateOperation={handleValidateOperation}
+              onCreateOperation={handleCreateOperation}
+            />
+          )}
+
+          {/* TAB 6: STOCK ADJUSTMENTS (PHYSICAL COUNT) */}
+          {currentTab === "adjustments" && (
+            <StockAdjustmentView
+              products={products}
+              adjustments={adjustments}
+              onApplyAdjustment={handleApplyAdjustment}
+            />
+          )}
+
+          {/* TAB 7: MOVE HISTORY / STOCK LEDGER */}
+          {currentTab === "ledger" && <StockLedgerView entries={ledger} />}
+
+          {/* TAB 8: WAREHOUSE SETTINGS */}
+          {currentTab === "settings" && <WarehouseSettingsView />}
+        </main>
+      </div>
 
       {/* Add Product Modal */}
       <AddProductModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        isOpen={isAddProductOpen}
+        onClose={() => setIsAddProductOpen(false)}
         onAddProduct={handleAddProduct}
+      />
+
+      {/* Role-Based Authentication & OTP Password Reset Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={(newProfile) => {
+          setUser(newProfile);
+          setCurrentTab("dashboard");
+        }}
       />
     </div>
   );
