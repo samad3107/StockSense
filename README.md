@@ -69,6 +69,9 @@ graph TD
         Ready --> Done[Validated / Done]
     end
 
+
+
+
 📁 Project Structure
 
 StockSense/
