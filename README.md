@@ -65,18 +65,18 @@
 
 ```mermaid
 graph TD
-    Vendor([Vendor / Supplier]) -->|Inbound Receipt| Warehouse[(Central Warehouse)]
-    Warehouse -->|Internal Transfer| Branch[(Regional Branch / Hub)]
-    Warehouse -->|Physical Count Variance| Adj[Inventory Adjustment]
-    Warehouse -->|Delivery Order| Customer([End Customer])
-    
-    subgraph Operations Lifecycle
-        Draft[Draft] --> Ready[Ready / Prepared]
-        Draft --> Waiting[Waiting Availability]
-        Waiting --> Ready
-        Ready --> Done[Validated / Done]
-        Ready --> Canceled[Canceled]
-    end
+Vendor([Vendor / Supplier]) -->|Inbound Receipt| Warehouse[(Central Warehouse)]
+Warehouse -->|Internal Transfer| Branch[(Regional Branch / Hub)]
+Warehouse -->|Physical Count Variance| Adj[Inventory Adjustment]
+Warehouse -->|Delivery Order| Customer([End Customer])
+
+subgraph Operations Lifecycle
+Draft[Draft] --> Ready[Ready / Prepared]
+Draft --> Waiting[Waiting Availability]
+Waiting --> Ready
+Ready --> Done[Validated / Done]
+Ready --> Canceled[Canceled]
+end
 ```
 
 ---
@@ -143,46 +143,46 @@ StockSense/
 ### Installation
 
 1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/samad3107/StockSense.git
-   cd StockSense
-   ```
+```bash
+git clone https://github.com/samad3107/StockSense.git
+cd StockSense
+```
 
 2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 
 3. **Start the local development server:**
-   ```bash
-   npm run dev
-   ```
+```bash
+npm run dev
+```
 
 4. **Open in browser:**
-   Navigate to [http://localhost:3000](http://localhost:3000) to view the application.
+Navigate to [http://localhost:3000](http://localhost:3000) to view the application.
 
 ---
 
 ## 👥 Team Contribution Guidelines
 
 1. **Create your feature branch:**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+```bash
+git checkout -b feature/your-feature-name
+```
 2. **Commit your changes:**
-   ```bash
-   git add .
-   git commit -m "feat: implement your feature"
-   ```
+```bash
+git add .
+git commit -m "feat: implement your feature"
+```
 3. **Push to the branch:**
-   ```bash
-   git push -u origin feature/your-feature-name
-   ```
+```bash
+git push -u origin feature/your-feature-name
+```
 4. **Open a Pull Request:**
-   Submit a PR against the `main` branch with a clear description of your contribution.
+Submit a PR against the `main` branch with a clear description of your contribution.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the M-I-T License.
