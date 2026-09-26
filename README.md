@@ -1,7 +1,7 @@
 # StockSense 📦
 
 > **Next-Generation Inventory Management System (IMS)**  
-> Built for the **Odoo Hackathon** to digitize warehouse operations, streamline supply chain movements, and eliminate manual stock discrepancies.
+> An enterprise-grade platform to digitize warehouse operations, streamline supply chain movements, and eliminate manual stock discrepancies.
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.3-black?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue?logo=react)](https://react.dev/)
@@ -13,7 +13,7 @@
 
 ## 📌 Overview
 
-**StockSense** is an enterprise-grade, real-time inventory management platform inspired by the modular efficiency of **Odoo ERP**. It replaces error-prone spreadsheets and manual ledgers with an automated, auditable digital workflow covering the entire stock lifecycle—from vendor procurement to warehouse fulfillment.
+**StockSense** is an enterprise-grade, real-time inventory management platform inspired by modular enterprise ERP architectures. It replaces error-prone spreadsheets and manual ledgers with an automated, auditable digital workflow covering the entire stock lifecycle—from vendor procurement to warehouse fulfillment.
 
 ---
 
@@ -42,10 +42,16 @@
 - **Multi-Location Routing**: Effortlessly move items between different warehouses, aisles, and bins.
 - **Cycle Counts & Adjustments**: Reconcile physical inventory counts against digital ledger numbers.
 - **Scrap & Damage Management**: Record lost, expired, or damaged inventory with reason codes.
+- **Immutable Stock Ledger**: Full double-entry movement history recording every stock in/out event.
 
-### 🔒 6. Enterprise Security & Access Control
-- **Role-Based Permissions**: Granular roles (Warehouse Admin, Inventory Manager, Logistics Clerk).
-- **Secure Authentication**: Protected API routes and authenticated session handling.
+### 👥 6. Role-Based Cockpits (Manager vs. Warehouse Staff)
+- **Inventory Manager**: Strategic valuation metrics, SKU pricing, procurement rules, and high-level KPI oversight.
+- **Warehouse Staff**: Floor-level cockpit for shelving inbound goods, picking & packing outbound deliveries, inter-rack transfers, and physical audits.
+
+### 🌐 7. Dual Currency & Universal Dark/Light Themes
+- **Dual Currency Switcher**: Instant toggle between Indian Rupee (₹ INR) and US Dollar ($ USD) with automatic conversions.
+- **Fluid Theme Engine**: Seamless dark and light modes with custom CSS tokens and high-contrast inputs.
+- **Public Landing Page**: Clean onboarding portal with responsive product showcase and 1-click team sign-in.
 
 ---
 
@@ -62,96 +68,89 @@ graph TD
         Draft[Draft] --> Ready[Ready / Reserved]
         Ready --> Done[Validated / Done]
     end
-```
 
----
 
-## 💻 Tech Stack
 
-| Domain | Technology |
-|---|---|
-| **Framework** | [Next.js 16](https://nextjs.org/) (App Router) |
-| **Frontend Library** | [React 19](https://react.dev/) |
-| **Language** | [TypeScript](https://www.typescriptlang.org/) |
-| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
-| **State & Data Fetching** | React Server Components & Server Actions |
-| **Version Control** | Git & GitHub |
 
----
 
-## 📁 Project Structure
 
-```text
+
+
+
+💻 Tech Stack
+Domain	Technology
+Framework	Next.js 16 (App Router)
+Frontend Library	React 19
+Language	TypeScript
+Styling	Tailwind CSS v4
+State & Data Fetching	React Server Components & Client Context
+Version Control	Git & GitHub
+
+
+
+📁 Project Structure
+text
 StockSense/
 ├── public/                 # Static assets, logos, and icons
 ├── src/
 │   ├── app/                # Next.js App Router (pages & layouts)
-│   │   ├── layout.tsx      # Root application layout
-│   │   ├── page.tsx        # Dashboard / Landing page
-│   │   ├── inventory/      # Products & stock levels
-│   │   ├── operations/     # Inbound receipts & delivery orders
-│   │   └── globals.css     # Global styles & Tailwind configuration
-│   └── components/         # Reusable UI components & modals
-│       ├── dashboard/      # KPI cards, metrics, and activity logs
-│       ├── inventory/      # Product tables, filters, and forms
-│       ├── operations/     # Transfer & delivery tracking cards
-│       └── layout/         # Sidebar, Header, and Navigation
+│   │   ├── layout.tsx      # Root application layout with theme context
+│   │   ├── page.tsx        # Role-based Dashboard & Public Landing gate
+│   │   └── globals.css     # Global styles & Tailwind CSS tokens
+│   ├── components/         # Reusable UI components & modals
+│   │   ├── LandingPage.tsx          # Public marketing & feature overview
+│   │   ├── AuthModal.tsx            # Login, registration, and OTP verification
+│   │   ├── StaffDashboardView.tsx   # Floor staff operational cockpit
+│   │   ├── KPICards.tsx             # Live valuation & stock status KPIs
+│   │   ├── ProductTable.tsx         # SKU catalog with search and filters
+│   │   ├── OperationsView.tsx       # Receipts, deliveries, and transfers
+│   │   ├── StockAdjustmentView.tsx  # Physical counting & discrepancy reconciliation
+│   │   ├── StockLedgerView.tsx      # Double-entry audit move history
+│   │   ├── WarehouseSettingsView.tsx# Locations, warehouses & user access
+│   │   ├── Sidebar.tsx              # Role-aware navigation & theme controls
+│   │   └── Navbar.tsx               # Top search bar & profile status
+│   ├── context/
+│   │   └── ThemeContext.tsx         # Light / Dark theme management
+│   ├── data/
+│   │   └── mockData.ts              # Master catalog & transaction state
+│   ├── types/
+│   │   └── inventory.ts             # Domain models & TypeScript interfaces
+│   └── utils/
+│       └── formatters.ts            # Currency formatter (INR ₹ / USD $)
 ├── package.json            # Project dependencies and scripts
 ├── tsconfig.json           # TypeScript configuration
 └── README.md               # Project documentation
-```
+⚙️ Getting Started
+Prerequisites
+Node.js: v18.18.0 or higher (v20+ recommended)
+npm: v9 or higher
+Installation
+Clone the repository:
 
----
+bash
+git clone https://github.com/samad3107/StockSense.git
+cd StockSense
+Install dependencies:
 
-## ⚙️ Getting Started
+bash
+npm install
+Start the local development server:
 
-### Prerequisites
-- **Node.js**: v18.18.0 or higher (v20+ recommended)
-- **npm**: v9 or higher
+bash
+npm run dev
+Open in browser: Navigate to http://localhost:3000 to view the application.
 
-### Installation
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/samad3107/StockSense.git
-   cd StockSense
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Start the local development server:**
-   ```bash
-   npm run dev
-   ```
-
-4. **Open in browser:**
-   Navigate to [http://localhost:3000](http://localhost:3000) to view the application.
-
----
-
-## 👥 Hackathon Contribution Guidelines
-
-1. **Create your feature branch:**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-2. **Commit your changes:**
-   ```bash
-   git add .
-   git commit -m "feat: implement your feature"
-   ```
-3. **Push to the branch:**
-   ```bash
-   git push -u origin feature/your-feature-name
-   ```
-4. **Open a Pull Request:**
-   Submit a PR against the `main` branch with a clear description of your contribution.
-
----
-
-## 📄 License
-
+👥 Team Contribution Guidelines
+Create your feature branch:
+bash
+git checkout -b feature/your-feature-name
+Commit your changes:
+bash
+git add .
+git commit -m "feat: implement your feature"
+Push to the branch:
+bash
+git push -u origin feature/your-feature-name
+Open a Pull Request: Submit a PR against the main branch with a clear description of your contribution.
+📄 License
 This project is licensed under the MIT License.
