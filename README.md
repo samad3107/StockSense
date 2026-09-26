@@ -1,53 +1,157 @@
 # StockSense 📦
 
-A centralized, real-time Inventory Management System (IMS) designed to digitize and streamline business operations, replacing manual registers and scattered spreadsheets.
+> **Next-Generation Inventory Management System (IMS)**  
+> Built for the **Odoo Hackathon** to digitize warehouse operations, streamline supply chain movements, and eliminate manual stock discrepancies.
 
-Key Features
-**Product Management:** SKU tracking, categories, low-stock alerts, and auto-reordering rules.
-**Inbound & Outbound:** Automated Vendor Receipts (stock in) and Delivery Orders (stock out).
-**Transfers & Adjustments:** Multi-warehouse internal transfers and instant physical inventory adjustments.
-**Real-time Analytics:** Interactive dashboard with live KPIs, status filters, and full move history.
-**Secure Access:** Role-based authentication with OTP password reset.
+[![Next.js](https://img.shields.io/badge/Next.js-16.3-black?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-blue?logo=react)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Tech Stack
+---
 
-Frontend:** React.js, JavaScript, CSS3
-Backend:** Django Framework / Django REST Framework (Python)
-Database:** MySQL
+## 📌 Overview
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+**StockSense** is an enterprise-grade, real-time inventory management platform inspired by the modular efficiency of **Odoo ERP**. It replaces error-prone spreadsheets and manual ledgers with an automated, auditable digital workflow covering the entire stock lifecycle—from vendor procurement to warehouse fulfillment.
 
-## Getting Started
+---
 
-First, run the development server:
+## 🚀 Key Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### 📊 1. Real-Time Analytics Dashboard
+- **Live Stock Valuation**: Instant calculation of total asset value across all storage locations.
+- **Stock Health Indicators**: Automated flags for Low Stock, Out-of-Stock, and Overstocked SKUs.
+- **Activity Timeline**: Full audit log of all inbound, outbound, and internal movements.
+
+### 🏷️ 2. Product & SKU Catalog
+- **Master Data Management**: Centralized records with SKU, Barcode, Category, and Unit of Measure (UoM).
+- **Automated Reordering Rules**: Configurable minimum/maximum stock rules triggering procurement notifications.
+- **Cost & Price Tracking**: Support for standard and dynamic inventory valuation.
+
+### 📥 3. Inbound Receipts (Vendor Stock-In)
+- **Supplier Receipts**: Track goods received against purchase orders.
+- **State Flow**: `Draft` ➔ `Waiting Availability` ➔ `Ready` ➔ `Done`.
+- **Quality Checks & Partial Deliveries**: Inspect incoming batches before shelving.
+
+### 📤 4. Outbound Delivery Orders (Stock-Out)
+- **Customer Fulfillment**: Pick, pack, and ship workflows for outgoing orders.
+- **Stock Reservation**: Reserve inventory automatically upon order confirmation to prevent overselling.
+
+### 🔄 5. Internal Transfers & Warehouse Adjustments
+- **Multi-Location Routing**: Effortlessly move items between different warehouses, aisles, and bins.
+- **Cycle Counts & Adjustments**: Reconcile physical inventory counts against digital ledger numbers.
+- **Scrap & Damage Management**: Record lost, expired, or damaged inventory with reason codes.
+
+### 🔒 6. Enterprise Security & Access Control
+- **Role-Based Permissions**: Granular roles (Warehouse Admin, Inventory Manager, Logistics Clerk).
+- **Secure Authentication**: Protected API routes and authenticated session handling.
+
+---
+
+## 🏗️ System Workflow
+
+```mermaid
+graph TD
+    Vendor([Vendor / Supplier]) -->|Inbound Receipt| Warehouse[(Central Warehouse)]
+    Warehouse -->|Internal Transfer| Branch[(Regional Branch / Hub)]
+    Warehouse -->|Physical Count Variance| Adj[Inventory Adjustment]
+    Warehouse -->|Delivery Order| Customer([End Customer])
+    
+    subgraph Operations Lifecycle
+        Draft[Draft] --> Ready[Ready / Reserved]
+        Ready --> Done[Validated / Done]
+    end
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 💻 Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Domain | Technology |
+|---|---|
+| **Framework** | [Next.js 16](https://nextjs.org/) (App Router) |
+| **Frontend Library** | [React 19](https://react.dev/) |
+| **Language** | [TypeScript](https://www.typescriptlang.org/) |
+| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
+| **State & Data Fetching** | React Server Components & Server Actions |
+| **Version Control** | Git & GitHub |
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 📁 Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```text
+StockSense/
+├── public/                 # Static assets, logos, and icons
+├── src/
+│   ├── app/                # Next.js App Router (pages & layouts)
+│   │   ├── layout.tsx      # Root application layout
+│   │   ├── page.tsx        # Dashboard / Landing page
+│   │   ├── inventory/      # Products & stock levels
+│   │   ├── operations/     # Inbound receipts & delivery orders
+│   │   └── globals.css     # Global styles & Tailwind configuration
+│   └── components/         # Reusable UI components & modals
+│       ├── dashboard/      # KPI cards, metrics, and activity logs
+│       ├── inventory/      # Product tables, filters, and forms
+│       ├── operations/     # Transfer & delivery tracking cards
+│       └── layout/         # Sidebar, Header, and Navigation
+├── package.json            # Project dependencies and scripts
+├── tsconfig.json           # TypeScript configuration
+└── README.md               # Project documentation
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## ⚙️ Getting Started
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Prerequisites
+- **Node.js**: v18.18.0 or higher (v20+ recommended)
+- **npm**: v9 or higher
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/samad3107/StockSense.git
+   cd StockSense
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Start the local development server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Open in browser:**
+   Navigate to [http://localhost:3000](http://localhost:3000) to view the application.
+
+---
+
+## 👥 Hackathon Contribution Guidelines
+
+1. **Create your feature branch:**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+2. **Commit your changes:**
+   ```bash
+   git add .
+   git commit -m "feat: implement your feature"
+   ```
+3. **Push to the branch:**
+   ```bash
+   git push -u origin feature/your-feature-name
+   ```
+4. **Open a Pull Request:**
+   Submit a PR against the `main` branch with a clear description of your contribution.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
