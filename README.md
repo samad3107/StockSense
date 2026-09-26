@@ -23,35 +23,41 @@
 - **Live Stock Valuation**: Instant calculation of total asset value across all storage locations.
 - **Stock Health Indicators**: Automated flags for Low Stock, Out-of-Stock, and Overstocked SKUs.
 - **Activity Timeline**: Full audit log of all inbound, outbound, and internal movements.
+- **Warehouse Facility Filter**: Multi-warehouse dropdown to isolate stock and metrics by facility.
 
-### 🏷️ 2. Product & SKU Catalog
+### 🏷️ 2. Product & SKU Catalog with Reordering Rules
 - **Master Data Management**: Centralized records with SKU, Barcode, Category, and Unit of Measure (UoM).
 - **Automated Reordering Rules**: Configurable minimum/maximum stock rules triggering procurement notifications.
-- **Cost & Price Tracking**: Support for standard and dynamic inventory valuation.
+- **SKU Metadata Editor**: In-place editor to update unit cost, reorder thresholds, and bin locations.
+- **Cost & Price Tracking**: Dual currency support (₹ INR / $ USD) with live conversions.
 
 ### 📥 3. Inbound Receipts (Vendor Stock-In)
 - **Supplier Receipts**: Track goods received against purchase orders.
-- **State Flow**: `Draft` ➔ `Waiting Availability` ➔ `Ready` ➔ `Done`.
-- **Quality Checks & Partial Deliveries**: Inspect incoming batches before shelving.
+- **State Flow**: `Draft` ➔ `Waiting` ➔ `Ready` ➔ `Done` / `Canceled`.
+- **Automatic Stock Increment**: Validating incoming receipts immediately updates quantity and logs to the ledger.
 
 ### 📤 4. Outbound Delivery Orders (Stock-Out)
 - **Customer Fulfillment**: Pick, pack, and ship workflows for outgoing orders.
-- **Stock Reservation**: Reserve inventory automatically upon order confirmation to prevent overselling.
+- **Stock Availability Guard**: Prevents phantom negative inventory by holding orders in `Waiting Availability` if stock is insufficient.
+- **Automatic Stock Reservation**: Deducts stock only upon verified dispatch.
 
-### 🔄 5. Internal Transfers & Warehouse Adjustments
-- **Multi-Location Routing**: Effortlessly move items between different warehouses, aisles, and bins.
-- **Cycle Counts & Adjustments**: Reconcile physical inventory counts against digital ledger numbers.
-- **Scrap & Damage Management**: Record lost, expired, or damaged inventory with reason codes.
-- **Immutable Stock Ledger**: Full double-entry movement history recording every stock in/out event.
+### 🔄 5. Internal Transfers & Real-Time Location Tracking
+- **Multi-Location Routing**: Move items between aisles, storage racks, and production lines.
+- **Live Shelf Locator**: Updating a transfer automatically moves the product's active storage location in the master catalog.
+- **Count Invariance**: Global company inventory remains balanced while rack locations update.
 
-### 👥 6. Role-Based Cockpits (Manager vs. Warehouse Staff)
-- **Inventory Manager**: Strategic valuation metrics, SKU pricing, procurement rules, and high-level KPI oversight.
-- **Warehouse Staff**: Floor-level cockpit for shelving inbound goods, picking & packing outbound deliveries, inter-rack transfers, and physical audits.
+### ⚖️ 6. Physical Stock Adjustments (Audits & Cycle Counts)
+- **Discrepancy Reconciliation**: Compare recorded digital numbers against physical floor counts.
+- **Shrinkage & Damage Reason Codes**: Log variances with reason tags (`Damaged`, `Stolen`, `Count Error`).
+- **One-Click Ledger Sync**: Rebalance stock with an immutable audit entry.
 
-### 🌐 7. Dual Currency & Universal Dark/Light Themes
-- **Dual Currency Switcher**: Instant toggle between Indian Rupee (₹ INR) and US Dollar ($ USD) with automatic conversions.
-- **Fluid Theme Engine**: Seamless dark and light modes with custom CSS tokens and high-contrast inputs.
-- **Public Landing Page**: Clean onboarding portal with responsive product showcase and 1-click team sign-in.
+### 📜 7. Immutable Central Stock Ledger (Move History)
+- **Double-Entry Traceability**: Comprehensive move history recording every movement with operator, timestamp, and reference code.
+- **Audit-Ready Logs**: Filterable timeline of all historical inventory transactions.
+
+### 🌐 8. Universal Light/Dark Theme & Public Landing Portal
+- **High-Contrast Theme Engine**: Fluid Dark and Light mode toggle with zero input glare.
+- **Public Landing Page**: Default showcase portal explaining system capabilities with 1-click team authentication.
 
 ---
 
@@ -65,6 +71,118 @@ graph TD
     Warehouse -->|Delivery Order| Customer([End Customer])
     
     subgraph Operations Lifecycle
-        Draft[Draft] --> Ready[Ready / Reserved]
+        Draft[Draft] --> Ready[Ready / Prepared]
+        Draft --> Waiting[Waiting Availability]
+        Waiting --> Ready
         Ready --> Done[Validated / Done]
+        Ready --> Canceled[Canceled]
     end
+```
+
+---
+
+## 💻 Tech Stack
+
+| Domain | Technology |
+|---|---|
+| **Framework** | [Next.js 16](https://nextjs.org/) (App Router) |
+| **Frontend Library** | [React 19](https://react.dev/) |
+| **Language** | [TypeScript](https://www.typescriptlang.org/) |
+| **Styling** | [Tailwind CSS v4](https://tailwindcss.com/) |
+| **Icons** | [Lucide React](https://lucide.dev/) |
+| **State Management** | React Client State & Context API |
+| **Version Control** | Git & GitHub |
+
+---
+
+## 📁 Project Structure
+
+```text
+StockSense/
+├── public/                 # Static assets, logos, and icons
+├── src/
+│   ├── app/                # Next.js App Router (pages & layouts)
+│   │   ├── layout.tsx      # Root application layout with theme context
+│   │   ├── page.tsx        # Role-based Dashboard & Public Landing gate
+│   │   └── globals.css     # Global styles & Tailwind CSS tokens
+│   ├── components/         # Reusable UI components & modals
+│   │   ├── LandingPage.tsx          # Public marketing & feature overview
+│   │   ├── AuthModal.tsx            # Login, registration, and OTP verification
+│   │   ├── StaffDashboardView.tsx   # Floor staff operational cockpit
+│   │   ├── KPICards.tsx             # Live valuation & stock status KPIs
+│   │   ├── ProductTable.tsx         # SKU catalog with search and filters
+│   │   ├── EditProductModal.tsx     # SKU editor & reorder rules modal
+│   │   ├── AddProductModal.tsx      # New SKU creation modal
+│   │   ├── OperationsView.tsx       # Receipts, deliveries, and transfers
+│   │   ├── StockAdjustmentView.tsx  # Physical counting & discrepancy reconciliation
+│   │   ├── StockLedgerView.tsx      # Double-entry audit move history
+│   │   ├── WarehouseSettingsView.tsx# Locations, warehouses & user access
+│   │   ├── Sidebar.tsx              # Role-aware navigation & theme controls
+│   │   └── Navbar.tsx               # Top search bar & profile status
+│   ├── context/
+│   │   └── ThemeContext.tsx         # Light / Dark theme management
+│   ├── data/
+│   │   └── mockData.ts              # Master catalog & transaction state
+│   ├── types/
+│   │   └── inventory.ts             # Domain models & TypeScript interfaces
+│   └── utils/
+│       └── formatters.ts            # Currency formatter (INR ₹ / USD $)
+├── package.json            # Project dependencies and scripts
+├── tsconfig.json           # TypeScript configuration
+└── README.md               # Project documentation
+```
+
+---
+
+## ⚙️ Getting Started
+
+### Prerequisites
+- **Node.js**: v18.18.0 or higher (v20+ recommended)
+- **npm**: v9 or higher
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/samad3107/StockSense.git
+   cd StockSense
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Start the local development server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Open in browser:**
+   Navigate to [http://localhost:3000](http://localhost:3000) to view the application.
+
+---
+
+## 👥 Team Contribution Guidelines
+
+1. **Create your feature branch:**
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+2. **Commit your changes:**
+   ```bash
+   git add .
+   git commit -m "feat: implement your feature"
+   ```
+3. **Push to the branch:**
+   ```bash
+   git push -u origin feature/your-feature-name
+   ```
+4. **Open a Pull Request:**
+   Submit a PR against the `main` branch with a clear description of your contribution.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
