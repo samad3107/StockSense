@@ -68,3 +68,36 @@ graph TD
         Draft[Draft] --> Ready[Ready / Reserved]
         Ready --> Done[Validated / Done]
     end
+
+📁 Project Structure
+
+StockSense/
+├── public/                 # Static assets, logos, and icons
+├── src/
+│   ├── app/                # Next.js App Router (pages & layouts)
+│   │   ├── layout.tsx      # Root application layout with theme context
+│   │   ├── page.tsx        # Role-based Dashboard & Public Landing gate
+│   │   └── globals.css     # Global styles & Tailwind CSS tokens
+│   ├── components/         # Reusable UI components & modals
+│   │   ├── LandingPage.tsx          # Public marketing & feature overview
+│   │   ├── AuthModal.tsx            # Login, registration, and OTP verification
+│   │   ├── StaffDashboardView.tsx   # Floor staff operational cockpit
+│   │   ├── KPICards.tsx             # Live valuation & stock status KPIs
+│   │   ├── ProductTable.tsx         # SKU catalog with search and filters
+│   │   ├── OperationsView.tsx       # Receipts, deliveries, and transfers
+│   │   ├── StockAdjustmentView.tsx  # Physical counting & discrepancy reconciliation
+│   │   ├── StockLedgerView.tsx      # Double-entry audit move history
+│   │   ├── WarehouseSettingsView.tsx# Locations, warehouses & user access
+│   │   ├── Sidebar.tsx              # Role-aware navigation & theme controls
+│   │   └── Navbar.tsx               # Top search bar & profile status
+│   ├── context/
+│   │   └── ThemeContext.tsx         # Light / Dark theme management
+│   ├── data/
+│   │   └── mockData.ts              # Master catalog & transaction state
+│   ├── types/
+│   │   └── inventory.ts             # Domain models & TypeScript interfaces
+│   └── utils/
+│       └── formatters.ts            # Currency formatter (INR ₹ / USD $)
+├── package.json            # Project dependencies and scripts
+├── tsconfig.json           # TypeScript configuration
+└── README.md               # Project documentation
