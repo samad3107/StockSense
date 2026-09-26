@@ -18,3 +18,22 @@ flowchart LR
     Vendor -->|Inbound Receipt| Warehouse
     Warehouse -->|Internal Transfer| Rack
     Warehouse -->|Delivery Order| Customer
+
+| Technology Usage
+| Next.js 16,App Router, enterprise frontend
+| React 19 | UI components 
+| TypeScript | Strong typing & maintainability
+| Tailwind CSS v4 | Styling & theming 
+| Lucide Icons | Iconography
+
+Getting Started 
+git clone <repo-url>
+cd StockSense
+npm install
+npm run dev
+
+Team & Contributions:-
+Syed Moazam
+Mohammed Abdul Samad
+Syed Omer Ali
+
