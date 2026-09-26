@@ -2,13 +2,14 @@
 
 import React, { useState } from "react";
 import { Product, StockStatus, Currency } from "@/types/inventory";
-import { Search, Filter, Plus, PlusCircle, MinusCircle, AlertCircle } from "lucide-react";
+import { Search, Filter, Plus, PlusCircle, MinusCircle, AlertCircle, Edit3 } from "lucide-react";
 import { formatCurrency } from "@/utils/formatters";
 
 interface ProductTableProps {
   products: Product[];
   currency: Currency;
   onAddProductClick: () => void;
+  onEditProductClick: (product: Product) => void;
   onUpdateQuantity: (id: string, delta: number) => void;
   filterStatus?: StockStatus | "ALL";
   setFilterStatus: (status: StockStatus | "ALL") => void;
@@ -18,6 +19,7 @@ export default function ProductTable({
   products,
   currency,
   onAddProductClick,
+  onEditProductClick,
   onUpdateQuantity,
   filterStatus = "ALL",
   setFilterStatus,
@@ -214,21 +216,28 @@ export default function ProductTable({
                       </span>
                     </td>
 
-                    {/* Quick Adjust Buttons */}
+                    {/* Quick Adjust & Edit Buttons */}
                     <td className="px-4 py-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => onEditProductClick(p)}
+                          title={`Edit ${p.sku} and reordering rules`}
+                          className="rounded-md p-1.5 text-zinc-500 hover:bg-purple-50 hover:text-purple-600 dark:text-zinc-400 dark:hover:bg-purple-950/50 dark:hover:text-purple-300 transition"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </button>
                         <button
                           onClick={() => onUpdateQuantity(p.id, -1)}
                           disabled={p.quantity <= 0}
                           title={`Decrease stock by 1 ${p.uom}`}
-                          className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-30 dark:hover:bg-zinc-800 transition"
+                          className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-30 dark:hover:bg-zinc-800 transition"
                         >
                           <MinusCircle className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => onUpdateQuantity(p.id, 1)}
                           title={`Increase stock by 1 ${p.uom}`}
-                          className="rounded-md p-1 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/50 transition"
+                          className="rounded-md p-1.5 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/50 transition"
                         >
                           <PlusCircle className="h-4 w-4" />
                         </button>

@@ -11,14 +11,20 @@ import {
   Check,
   Plus,
   Truck,
+  Filter,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
+import { OperationStatus } from "@/types/inventory";
 
 interface OperationsViewProps {
   operations: StockOperation[];
   products: Product[];
   currentTypeFilter: "ALL" | OperationType;
   onValidateOperation: (id: string) => void;
-  onCreateOperation: (newOp: Omit<StockOperation, "id" | "reference" | "status" | "date">) => void;
+  onCancelOperation?: (id: string) => void;
+  onMarkReady?: (id: string) => void;
+  onCreateOperation: (newOp: Omit<StockOperation, "id" | "reference" | "date">) => void;
 }
 
 export default function OperationsView({
@@ -26,13 +32,17 @@ export default function OperationsView({
   products,
   currentTypeFilter,
   onValidateOperation,
+  onCancelOperation,
+  onMarkReady,
   onCreateOperation,
 }: OperationsViewProps) {
   const [selectedType, setSelectedType] = useState<"ALL" | OperationType>(currentTypeFilter);
+  const [selectedStatus, setSelectedStatus] = useState<"ALL" | OperationStatus>("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Form states
   const [opType, setOpType] = useState<OperationType>("Receipt");
+  const [initialStatus, setInitialStatus] = useState<OperationStatus>("Ready");
   const [partner, setPartner] = useState("");
   const [selectedProductId, setSelectedProductId] = useState(products[0]?.id || "");
   const [quantity, setQuantity] = useState<number>(10);
@@ -40,14 +50,16 @@ export default function OperationsView({
   const [destinationLocation, setDestinationLocation] = useState("Main Store / Rack-A");
 
   const filteredOps = operations.filter((op) => {
-    if (selectedType === "ALL") return true;
-    return op.type === selectedType;
+    const matchesType = selectedType === "ALL" || op.type === selectedType;
+    const matchesStatus = selectedStatus === "ALL" || op.status === selectedStatus;
+    return matchesType && matchesStatus;
   });
 
   const selectedProduct = products.find((p) => p.id === selectedProductId) || products[0];
 
   const handleOpenModal = (defaultType: OperationType) => {
     setOpType(defaultType);
+    setInitialStatus("Ready");
     if (defaultType === "Receipt") {
       setPartner("Tata Steel Logistics");
       setSourceLocation("Partner Locations / Vendors");
@@ -77,6 +89,7 @@ export default function OperationsView({
       productName: selectedProduct.name,
       quantity: Number(quantity),
       uom: selectedProduct.uom,
+      status: initialStatus,
     });
 
     setIsModalOpen(false);
@@ -129,6 +142,31 @@ export default function OperationsView({
         </div>
       </div>
 
+      {/* Dynamic Status Filters (Page 1 Problem Statement Spec) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 px-5 py-2.5 dark:border-zinc-800/60 bg-zinc-50/50 dark:bg-zinc-950/40 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="font-semibold text-zinc-400 mr-1 flex items-center gap-1">
+            <Filter className="h-3.5 w-3.5" /> Status Filter:
+          </span>
+          {(["ALL", "Draft", "Waiting", "Ready", "Done", "Canceled"] as const).map((st) => (
+            <button
+              key={st}
+              onClick={() => setSelectedStatus(st)}
+              className={`rounded-md px-2.5 py-1 font-medium transition ${
+                selectedStatus === st
+                  ? "bg-purple-600 text-white shadow-xs"
+                  : "bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-100 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              }`}
+            >
+              {st === "ALL" ? "All Statuses" : st}
+            </button>
+          ))}
+        </div>
+        <span className="text-zinc-400 text-[11px]">
+          Showing {filteredOps.length} of {operations.length} operations
+        </span>
+      </div>
+
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
@@ -147,7 +185,7 @@ export default function OperationsView({
             {filteredOps.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-8 text-center text-xs text-zinc-500">
-                  No operations found for this category.
+                  No operations match the selected type and status filters.
                 </td>
               </tr>
             ) : (
@@ -200,29 +238,73 @@ export default function OperationsView({
                           ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                           : op.status === "Ready"
                           ? "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
-                          : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                          : op.status === "Waiting"
+                          ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                          : op.status === "Draft"
+                          ? "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300"
+                          : "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
                       }`}
                     >
-                      {op.status === "Done" ? (
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                      ) : (
-                        <Clock className="h-3 w-3 text-blue-600" />
-                      )}
+                      {op.status === "Done" && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
+                      {op.status === "Ready" && <Clock className="h-3 w-3 text-blue-600" />}
+                      {op.status === "Waiting" && <AlertTriangle className="h-3 w-3 text-amber-600" />}
+                      {op.status === "Draft" && <Clock className="h-3 w-3 text-purple-600" />}
+                      {op.status === "Canceled" && <XCircle className="h-3 w-3 text-rose-600" />}
                       {op.status}
                     </span>
                   </td>
 
                   <td className="px-4 py-4 text-right">
-                    {op.status !== "Done" ? (
-                      <button
-                        onClick={() => onValidateOperation(op.id)}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                        Validate & Apply
-                      </button>
-                    ) : (
+                    {op.status === "Draft" && (
+                      <div className="flex items-center justify-end gap-1.5">
+                        {onMarkReady && (
+                          <button
+                            onClick={() => onMarkReady(op.id)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition"
+                          >
+                            <Clock className="h-3 w-3" />
+                            Mark Ready
+                          </button>
+                        )}
+                        {onCancelOperation && (
+                          <button
+                            onClick={() => onCancelOperation(op.id)}
+                            title="Cancel Operation"
+                            className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs font-medium text-zinc-500 hover:bg-rose-50 hover:text-rose-600 dark:border-zinc-800 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {(op.status === "Ready" || op.status === "Waiting") && (
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => onValidateOperation(op.id)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Validate & Apply
+                        </button>
+                        {onCancelOperation && (
+                          <button
+                            onClick={() => onCancelOperation(op.id)}
+                            title="Cancel Operation"
+                            className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2 py-1.5 text-xs font-medium text-zinc-500 hover:bg-rose-50 hover:text-rose-600 dark:border-zinc-800 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 transition"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {op.status === "Done" && (
                       <span className="text-xs text-zinc-400 font-medium">Posted to Ledger</span>
+                    )}
+
+                    {op.status === "Canceled" && (
+                      <span className="text-xs text-rose-500 font-medium">Cancelled</span>
                     )}
                   </td>
                 </tr>
@@ -246,32 +328,52 @@ export default function OperationsView({
             </p>
 
             <form onSubmit={handleCreateSubmit} className="mt-4 space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                  Operation Type
-                </label>
-                <select
-                  value={opType}
-                  onChange={(e) => {
-                    const newT = e.target.value as OperationType;
-                    setOpType(newT);
-                    if (newT === "Receipt") {
-                      setSourceLocation("Partner Locations / Vendors");
-                      setDestinationLocation("Main Store / Rack-A");
-                    } else if (newT === "Delivery") {
-                      setSourceLocation("WH/Finished/Ais-2");
-                      setDestinationLocation("Partner Locations / Customers");
-                    } else {
-                      setSourceLocation("Main Store");
-                      setDestinationLocation("Production Rack / Line-1");
-                    }
-                  }}
-                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-purple-600 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 font-medium"
-                >
-                  <option value="Receipt">Receipt (Incoming Stock +)</option>
-                  <option value="Delivery">Delivery Order (Outgoing Stock -)</option>
-                  <option value="Transfer">Internal Transfer (Location Relocation)</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Operation Type
+                  </label>
+                  <select
+                    value={opType}
+                    onChange={(e) => {
+                      const newT = e.target.value as OperationType;
+                      setOpType(newT);
+                      if (newT === "Receipt") {
+                        setPartner("Tata Steel Logistics");
+                        setSourceLocation("Partner Locations / Vendors");
+                        setDestinationLocation("Main Store / Rack-A");
+                      } else if (newT === "Delivery") {
+                        setPartner("Customer Order #SO-109");
+                        setSourceLocation("WH/Finished/Ais-2");
+                        setDestinationLocation("Partner Locations / Customers");
+                      } else {
+                        setPartner("Internal Logistics");
+                        setSourceLocation("Main Store");
+                        setDestinationLocation("Production Rack / Line-1");
+                      }
+                    }}
+                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-purple-600 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 font-medium"
+                  >
+                    <option value="Receipt">Receipt (Stock +)</option>
+                    <option value="Delivery">Delivery (Stock -)</option>
+                    <option value="Transfer">Transfer (Move)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Initial Document State
+                  </label>
+                  <select
+                    value={initialStatus}
+                    onChange={(e) => setInitialStatus(e.target.value as OperationStatus)}
+                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 focus:border-purple-600 focus:bg-white dark:focus:bg-zinc-900 focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 font-medium"
+                  >
+                    <option value="Ready">Ready (Prepared)</option>
+                    <option value="Draft">Draft (Preliminary)</option>
+                    <option value="Waiting">Waiting (Pending stock)</option>
+                  </select>
+                </div>
               </div>
 
               <div>
