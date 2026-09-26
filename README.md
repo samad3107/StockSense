@@ -1,7 +1,7 @@
 # StockSense 📦
 
 > **Next-Generation Inventory Management System (IMS)**  
-> Built for the **Odoo Hackathon** to digitize warehouse operations, streamline supply chain movements, and eliminate manual stock discrepancies.
+> An enterprise-grade platform to digitize warehouse operations, streamline supply chain movements, and eliminate manual stock discrepancies.
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.3-black?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue?logo=react)](https://react.dev/)
@@ -13,7 +13,7 @@
 
 ## 📌 Overview
 
-**StockSense** is an enterprise-grade, real-time inventory management platform inspired by the modular efficiency of **Odoo ERP**. It replaces error-prone spreadsheets and manual ledgers with an automated, auditable digital workflow covering the entire stock lifecycle—from vendor procurement to warehouse fulfillment.
+**StockSense** is an enterprise-grade, real-time inventory management platform inspired by modular enterprise ERP architectures. It replaces error-prone spreadsheets and manual ledgers with an automated, auditable digital workflow covering the entire stock lifecycle—from vendor procurement to warehouse fulfillment.
 
 ---
 
@@ -132,7 +132,7 @@ StockSense/
 
 ---
 
-## 👥 Hackathon Contribution Guidelines
+## 👥 Team Contribution Guidelines
 
 1. **Create your feature branch:**
    ```bash

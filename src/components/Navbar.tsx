@@ -33,7 +33,7 @@ export default function Navbar({
                   StockSense
                 </span>
                 <span className="rounded-md bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:bg-purple-950/70 dark:text-purple-300">
-                  Odoo IMS
+                  Enterprise IMS
                 </span>
               </div>
               <p className="text-xs text-zinc-500">Real-Time Warehouse Management</p>
