@@ -1,7 +1,7 @@
 # StockSense 📦
 
 > **Next-Generation Inventory Management System (IMS)**  
-> An enterprise-grade platform to digitize warehouse operations, streamline supply chain movements, and eliminate manual stock discrepancies.
+> Built for the **Odoo Hackathon** to digitize warehouse operations, streamline supply chain movements, and eliminate manual stock discrepancies.
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.3-black?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue?logo=react)](https://react.dev/)
@@ -13,7 +13,7 @@
 
 ## 📌 Overview
 
-**StockSense** is an enterprise-grade, real-time inventory management platform inspired by modular enterprise ERP architectures. It replaces error-prone spreadsheets and manual ledgers with an automated, auditable digital workflow covering the entire stock lifecycle—from vendor procurement to warehouse fulfillment.
+**StockSense** is an enterprise-grade, real-time inventory management platform inspired by the modular efficiency of **Odoo ERP**. It replaces error-prone spreadsheets and manual ledgers with an automated, auditable digital workflow covering the entire stock lifecycle—from vendor procurement to warehouse fulfillment.
 
 ---
 
@@ -42,16 +42,10 @@
 - **Multi-Location Routing**: Effortlessly move items between different warehouses, aisles, and bins.
 - **Cycle Counts & Adjustments**: Reconcile physical inventory counts against digital ledger numbers.
 - **Scrap & Damage Management**: Record lost, expired, or damaged inventory with reason codes.
-- **Immutable Stock Ledger**: Full double-entry movement history recording every stock in/out event.
 
-### 👥 6. Role-Based Cockpits (Manager vs. Warehouse Staff)
-- **Inventory Manager**: Strategic valuation metrics, SKU pricing, procurement rules, and high-level KPI oversight.
-- **Warehouse Staff**: Floor-level cockpit for shelving inbound goods, picking & packing outbound deliveries, inter-rack transfers, and physical audits.
-
-### 🌐 7. Dual Currency & Universal Dark/Light Themes
-- **Dual Currency Switcher**: Instant toggle between Indian Rupee (₹ INR) and US Dollar ($ USD) with automatic conversions.
-- **Fluid Theme Engine**: Seamless dark and light modes with custom CSS tokens and high-contrast inputs.
-- **Public Landing Page**: Clean onboarding portal with responsive product showcase and 1-click team sign-in.
+### 🔒 6. Enterprise Security & Access Control
+- **Role-Based Permissions**: Granular roles (Warehouse Admin, Inventory Manager, Logistics Clerk).
+- **Secure Authentication**: Protected API routes and authenticated session handling.
 
 ---
 
@@ -138,7 +132,7 @@ StockSense/
 
 ---
 
-## 👥 Team Contribution Guidelines
+## 👥 Hackathon Contribution Guidelines
 
 1. **Create your feature branch:**
    ```bash
