@@ -41,8 +41,12 @@ import {
   LogOut,
   Sun,
   Moon,
+  Warehouse,
+  Bell,
+  AlertTriangle,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import EditProductModal from "@/components/EditProductModal";
 
 export default function Home() {
   const { theme, toggleTheme, mounted } = useTheme();
@@ -57,9 +61,13 @@ export default function Home() {
   const [currentTab, setCurrentTab] = useState<NavItem>("dashboard");
   const [currency, setCurrency] = useState<Currency>("INR");
   const [filterStatus, setFilterStatus] = useState<StockStatus | "ALL">("ALL");
+  const [selectedFacility, setSelectedFacility] = useState<string>("All Warehouses");
+  const [isAlertTrayOpen, setIsAlertTrayOpen] = useState(false);
+  const [operationNotice, setOperationNotice] = useState<string | null>(null);
 
   // Modals
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Helper: Stock status calculation
@@ -91,11 +99,23 @@ export default function Home() {
   // 1. Validate an Operation (Receipt, Delivery, or Transfer)
   const handleValidateOperation = (opId: string) => {
     const op = operations.find((o) => o.id === opId);
-    if (!op || op.status === "Done") return;
+    if (!op || op.status === "Done" || op.status === "Canceled") return;
 
     const targetProduct = products.find((p) => p.id === op.productId);
     if (!targetProduct) return;
 
+    // Delivery Guardrail (Problem Statement Spec): check physical availability
+    if (op.type === "Delivery" && targetProduct.quantity < op.quantity) {
+      setOperations((prev) =>
+        prev.map((o) => (o.id === opId ? { ...o, status: "Waiting" as const } : o))
+      );
+      setOperationNotice(
+        `⚠️ Delivery Order ${op.reference} placed on "Waiting Availability": Requested ${op.quantity} ${targetProduct.uom}, but only ${targetProduct.quantity} ${targetProduct.uom} available in storage.`
+      );
+      return;
+    }
+
+    setOperationNotice(null);
     let qtyDelta = 0;
     let newQty = targetProduct.quantity;
     let newLocation = targetProduct.location;
@@ -147,9 +167,35 @@ export default function Home() {
     setLedger((prev) => [newLedgerEntry, ...prev]);
   };
 
+  const handleCancelOperation = (opId: string) => {
+    setOperations((prev) =>
+      prev.map((o) => (o.id === opId ? { ...o, status: "Canceled" as const } : o))
+    );
+  };
+
+  const handleMarkReady = (opId: string) => {
+    setOperations((prev) =>
+      prev.map((o) => (o.id === opId ? { ...o, status: "Ready" as const } : o))
+    );
+  };
+
+  const handleUpdateProduct = (updated: Product) => {
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === updated.id
+          ? {
+              ...updated,
+              status: calculateStockStatus(updated.quantity, updated.minThreshold),
+              lastUpdated: "Just now",
+            }
+          : p
+      )
+    );
+  };
+
   // 2. Create a new Operation order
   const handleCreateOperation = (
-    newOp: Omit<StockOperation, "id" | "reference" | "status" | "date">
+    newOp: Omit<StockOperation, "id" | "reference" | "date">
   ) => {
     const prefix = newOp.type === "Receipt" ? "WH/IN" : newOp.type === "Delivery" ? "WH/OUT" : "WH/INT";
     const ref = `${prefix}/${String(operations.length + 1).padStart(4, "0")}`;
@@ -158,7 +204,6 @@ export default function Home() {
       ...newOp,
       id: `op-${Date.now()}`,
       reference: ref,
-      status: "Ready",
       date: new Date().toISOString().split("T")[0],
     };
 
@@ -288,6 +333,12 @@ export default function Home() {
   // VIEW RENDER: AUTHENTICATED IMS (BY ROLE)
   // ==========================================
   const isManager = user.role === "Inventory Manager";
+  const displayProducts =
+    selectedFacility === "All Warehouses"
+      ? products
+      : products.filter((p) =>
+          p.location.toLowerCase().includes(selectedFacility.toLowerCase())
+        );
 
   return (
     <div className="flex min-h-screen bg-zinc-50/60 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans">
@@ -328,6 +379,82 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Interactive Facility Filter (Page 1 Problem Statement Spec) */}
+            <div className="hidden sm:flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs dark:border-zinc-800 dark:bg-zinc-900">
+              <Warehouse className="h-3.5 w-3.5 text-purple-600" />
+              <select
+                value={selectedFacility}
+                onChange={(e) => setSelectedFacility(e.target.value)}
+                className="bg-transparent font-medium text-zinc-700 focus:outline-none dark:text-zinc-300"
+              >
+                <option value="All Warehouses">All Warehouses (Global)</option>
+                <option value="Main Store">Main Store (Rack A/B)</option>
+                <option value="Production">Production Hub</option>
+                <option value="Ais-2">Aisle-2 Finished</option>
+              </select>
+            </div>
+
+            {/* Low-Stock Notification Bell (Problem Statement Reorder Alerts) */}
+            <div className="relative">
+              <button
+                onClick={() => setIsAlertTrayOpen(!isAlertTrayOpen)}
+                title="Stock Reorder Alerts"
+                className="relative flex items-center justify-center h-7 w-7 rounded-lg border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 transition"
+              >
+                <Bell className="h-3.5 w-3.5" />
+                {kpiData.lowStockCount + kpiData.outOfStockCount > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-600 text-[9px] font-bold text-white">
+                    {kpiData.lowStockCount + kpiData.outOfStockCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Popover Dropdown */}
+              {isAlertTrayOpen && (
+                <div className="absolute right-0 mt-2 w-80 rounded-xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="flex items-center justify-between border-b border-zinc-100 pb-2 dark:border-zinc-800">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Stock Reorder Alerts
+                    </h4>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      {products.filter((p) => p.status !== "In Stock").length} Alert(s)
+                    </span>
+                  </div>
+
+                  <div className="mt-3 max-h-60 overflow-y-auto space-y-2">
+                    {products.filter((p) => p.status !== "In Stock").length === 0 ? (
+                      <p className="text-xs text-zinc-400 py-3 text-center">All products are healthy & in stock!</p>
+                    ) : (
+                      products
+                        .filter((p) => p.status !== "In Stock")
+                        .map((p) => (
+                          <div
+                            key={p.id}
+                            className="flex items-center justify-between rounded-lg border border-zinc-100 p-2 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-950/40"
+                          >
+                            <div>
+                              <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{p.name}</p>
+                              <p className="text-[11px] text-zinc-500">
+                                Stock: <span className="font-bold text-rose-600">{p.quantity} {p.uom}</span> (Min: {p.minThreshold})
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setIsAlertTrayOpen(false);
+                                setCurrentTab("receipts");
+                              }}
+                              className="rounded bg-purple-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-purple-700 transition"
+                            >
+                              + Receive
+                            </button>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${
                 isManager
@@ -367,6 +494,22 @@ export default function Home() {
             </button>
           </div>
         </header>
+
+        {/* Real-Time Operational Notice Banner */}
+        {operationNotice && (
+          <div className="bg-amber-500/10 border-b border-amber-500/30 px-6 py-2.5 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+              <span className="font-medium">{operationNotice}</span>
+            </div>
+            <button
+              onClick={() => setOperationNotice(null)}
+              className="text-amber-900 dark:text-amber-200 hover:underline font-bold text-[11px]"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {/* View Contents */}
         <main className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
@@ -546,9 +689,10 @@ export default function Home() {
 
                   {/* Embedded Products Table */}
                   <ProductTable
-                    products={products}
+                    products={displayProducts}
                     currency={currency}
                     onAddProductClick={() => setIsAddProductOpen(true)}
+                    onEditProductClick={(p) => setEditingProduct(p)}
                     onUpdateQuantity={handleQuickAdjustQuantity}
                     filterStatus={filterStatus}
                     setFilterStatus={setFilterStatus}
@@ -557,7 +701,7 @@ export default function Home() {
               ) : (
                 /* WAREHOUSE STAFF VIEW (FLOOR OPERATIONS) */
                 <StaffDashboardView
-                  products={products}
+                  products={displayProducts}
                   operations={operations}
                   recentLedger={ledger}
                   onNavigateTab={(tab) => setCurrentTab(tab)}
@@ -570,9 +714,10 @@ export default function Home() {
           {/* TAB 2: PRODUCTS */}
           {currentTab === "products" && (
             <ProductTable
-              products={products}
+              products={displayProducts}
               currency={currency}
               onAddProductClick={() => setIsAddProductOpen(true)}
+              onEditProductClick={(p) => setEditingProduct(p)}
               onUpdateQuantity={handleQuickAdjustQuantity}
               filterStatus={filterStatus}
               setFilterStatus={setFilterStatus}
@@ -586,6 +731,8 @@ export default function Home() {
               products={products}
               currentTypeFilter="Receipt"
               onValidateOperation={handleValidateOperation}
+              onCancelOperation={handleCancelOperation}
+              onMarkReady={handleMarkReady}
               onCreateOperation={handleCreateOperation}
             />
           )}
@@ -597,6 +744,8 @@ export default function Home() {
               products={products}
               currentTypeFilter="Delivery"
               onValidateOperation={handleValidateOperation}
+              onCancelOperation={handleCancelOperation}
+              onMarkReady={handleMarkReady}
               onCreateOperation={handleCreateOperation}
             />
           )}
@@ -608,6 +757,8 @@ export default function Home() {
               products={products}
               currentTypeFilter="Transfer"
               onValidateOperation={handleValidateOperation}
+              onCancelOperation={handleCancelOperation}
+              onMarkReady={handleMarkReady}
               onCreateOperation={handleCreateOperation}
             />
           )}
@@ -634,6 +785,14 @@ export default function Home() {
         isOpen={isAddProductOpen}
         onClose={() => setIsAddProductOpen(false)}
         onAddProduct={handleAddProduct}
+      />
+
+      {/* Edit Product & Reordering Rules Modal */}
+      <EditProductModal
+        product={editingProduct}
+        isOpen={!!editingProduct}
+        onClose={() => setEditingProduct(null)}
+        onUpdateProduct={handleUpdateProduct}
       />
 
       {/* Role-Based Authentication & OTP Password Reset Modal */}
