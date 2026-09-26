@@ -68,6 +68,17 @@ graph TD
         Draft[Draft] --> Ready[Ready / Reserved]
         Ready --> Done[Validated / Done]
     end
+```mermaid
+graph TD
+    Vendor([Vendor / Supplier]) -->|Inbound Receipt| Warehouse[(Central Warehouse)]
+    Warehouse -->|Internal Transfer| Branch[(Regional Branch / Hub)]
+    Warehouse -->|Physical Count Variance| Adj[Inventory Adjustment]
+    Warehouse -->|Delivery Order| Customer([End Customer])
+    
+    subgraph Operations Lifecycle
+        Draft[Draft] --> Ready[Ready / Reserved]
+        Ready --> Done[Validated / Done]
+    end
 
 ## 📁 Project Structure
 
@@ -102,8 +113,5 @@ StockSense/
 ├── tsconfig.json           # TypeScript configuration
 └── README.md               # Project documentation
 
-| Team Member | Role | Key Contributions & Modules |
-| :--- | :--- | :--- |
-| **Mohammed Abdul Samad Siddiqui** | Lead Architect & Core Operations | • System Architecture & Next.js 16 App Router setup<br>• Core Stock Operations (`OperationsView.tsx`, `StockAdjustmentView.tsx`) <br>• Master Data Models & Type definitions (`inventory.ts`, `mockData.ts`) |
-| **Syed Moazam** | UI/UX & Frontend Integration | • Application Shell (`Navbar.tsx`, `Sidebar.tsx`) & Public Landing (`LandingPage.tsx`)<br>• Analytics Components (`KPICards.tsx`, `ProductTable.tsx`)<br>• Dynamic Theme Engine (`ThemeContext.tsx`, `globals.css`) |
+
 | **Syed Omer Ali** | Operational Cockpits & Audit Modules | • Role-Aware Cockpits (`StaffDashboardView.tsx`, Auth Gating)<br>• Immutable Audit Ledger (`StockLedgerView.tsx`)<br>• Administrative Settings (`WarehouseSettingsView.tsx`) & Multi-Currency Engine (`formatters.ts`) |
