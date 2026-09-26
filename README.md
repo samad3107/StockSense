@@ -65,22 +65,6 @@ graph TD
     Warehouse -->|Delivery Order| Customer([End Customer])
     
     subgraph Operations Lifecycle
-        Draft[Draft] --> Ready[Ready / Reserved]
-        Ready --> Done[Validated / Done]
-    end
-```mermaid
-graph TD
-    Vendor([Vendor / Supplier]) -->|Inbound Receipt| Warehouse[(Central Warehouse)]
-    Warehouse -->|Internal Transfer| Branch[(Regional Branch / Hub)]
-    Warehouse -->|Physical Count Variance| Adj[Inventory Adjustment]
-    Warehouse -->|Delivery Order| Customer([End Customer])
-    
-    subgraph Operations Lifecycle
-        Draft[Draft] --> Ready[Ready / Reserved]
-        Ready --> Done[Validated / Done]
-    end
-
-## 📁 Project Structure
 
 StockSense/
 ├── public/                 # Static assets, logos, and icons
@@ -112,6 +96,6 @@ StockSense/
 ├── package.json            # Project dependencies and scripts
 ├── tsconfig.json           # TypeScript configuration
 └── README.md               # Project documentation
-
-
-| **Syed Omer Ali** | Operational Cockpits & Audit Modules | • Role-Aware Cockpits (`StaffDashboardView.tsx`, Auth Gating)<br>• Immutable Audit Ledger (`StockLedgerView.tsx`)<br>• Administrative Settings (`WarehouseSettingsView.tsx`) & Multi-Currency Engine (`formatters.ts`) |
+        Draft[Draft] --> Ready[Ready / Reserved]
+        Ready --> Done[Validated / Done]
+    end
